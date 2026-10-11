@@ -7,23 +7,20 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+      - name: Unzip project
+        run: unzip -q -o DjApp-fixed2.zip
       - uses: actions/setup-java@v4
         with: { distribution: temurin, java-version: 17 }
       - uses: android-actions/setup-android@v3
         with: { packages: "platform-tools platforms;android-34 build-tools;34.0.0 ndk;26.1.10909125 cmake;3.22.1" }
       - uses: gradle/actions/setup-gradle@v4
         with: { gradle-version: 8.7 }
-      - name: Locate project
-        id: proj
-        run: |
-          f=$(find . -name settings.gradle.kts | head -1)
-          echo "dir=$(dirname "$f")" >> "$GITHUB_OUTPUT"
       - name: Build
-        working-directory: ${{ steps.proj.outputs.dir }}
+        working-directory: DjApp
         run: gradle assembleDebug --stacktrace 2>&1 | tee build.log; exit ${PIPESTATUS[0]}
       - name: Show errors
         if: failure()
-        working-directory: ${{ steps.proj.outputs.dir }}
+        working-directory: DjApp
         run: |
           {
             echo '## ERROR DETAILS'
@@ -34,4 +31,4 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: DjApp-debug-apk
-          path: "**/build/outputs/apk/debug/app-debug.apk"
+          path: DjApp/app/build/outputs/apk/debug/app-debug.apk
