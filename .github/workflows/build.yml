@@ -16,7 +16,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Extract Android project
-        run: unzip -q DjApp.zip
+        run: unzip -q DjApp-fixed.zip
 
       - name: Set up Java 17
         uses: actions/setup-java@v4
