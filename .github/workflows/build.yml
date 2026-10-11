@@ -1,75 +1,37 @@
-name: Build MAXXIDODJ APK
-
-'on':
+name: Build APK
+on:
   push:
   workflow_dispatch:
-
-permissions:
-  contents: write
-
 jobs:
   build:
-    runs-on: ubuntu-latest
-
+    runs-on: ubuntu-24.04
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Extract Android project
-        run: unzip -q DjApp-fixed.zip
-
-      - name: Set up Java 17
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '17'
-
-      - name: Install Android SDK components
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 17 }
+      - uses: android-actions/setup-android@v3
+        with: { packages: "platform-tools platforms;android-34 build-tools;34.0.0 ndk;26.1.10909125 cmake;3.22.1" }
+      - uses: gradle/actions/setup-gradle@v4
+        with: { gradle-version: 8.7 }
+      - name: Locate project
+        id: proj
         run: |
-          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses || true
-          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" \
-            "platforms;android-34" \
-            "build-tools;34.0.0" \
-            "ndk;26.1.10909125" \
-            "cmake;3.22.1"
-
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: '8.7'
-
-      - name: Configure Android project
-        working-directory: DjApp
-        run: |
-          printf 'android.useAndroidX=true\norg.gradle.jvmargs=-Xmx3g\n' > gradle.properties
-
-      - name: Build MAXXIDODJ APK
-        working-directory: DjApp
-        shell: bash
-        run: |
-          set -o pipefail
-          gradle assembleDebug --console=plain 2>&1 | tee build.log
-
-      - name: Show build errors
+          f=$(find . -name settings.gradle.kts | head -1)
+          echo "dir=$(dirname "$f")" >> "$GITHUB_OUTPUT"
+      - name: Build
+        working-directory: ${{ steps.proj.outputs.dir }}
+        run: gradle assembleDebug --stacktrace 2>&1 | tee build.log; exit ${PIPESTATUS[0]}
+      - name: Show errors
         if: failure()
-        working-directory: DjApp
+        working-directory: ${{ steps.proj.outputs.dir }}
         run: |
           {
-            echo "MAXXIDODJ BUILD LOG"
-            echo '```text'
-            if [ -f build.log ]; then
-              tail -n 200 build.log
-            else
-              echo "Build log not found. Check earlier workflow steps."
-            fi
+            echo '## ERROR DETAILS'
+            echo '```'
+            grep -n -B2 -A12 -E "CMake Error|CXX1212|error:|e: |What went wrong" build.log | cut -c1-400 | head -150
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Upload APK
-        if: success()
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
-          name: MAXXIDODJ-debug-APK
-          path: DjApp/app/build/outputs/apk/debug/app-debug.apk
-          if-no-files-found: error
-          retention-days: 14
+          name: DjApp-debug-apk
+          path: "**/build/outputs/apk/debug/app-debug.apk"
