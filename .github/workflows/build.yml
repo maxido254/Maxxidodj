@@ -13,6 +13,8 @@ jobs:
         run: printf 'android.useAndroidX=true\norg.gradle.jvmargs=-Xmx3g\n' > DjApp/gradle.properties
       - name: Patch Stems panel
         run: sed -i 's/^private fun StemsPanel/private fun ColumnScope.StemsPanel/' DjApp/app/src/main/java/com/example/djapp/Panels.kt
+      - name: Patch tempo name clash
+        run: sed -i 's/setTempoPct/applyTempo/g' DjApp/app/src/main/java/com/example/djapp/DeckState.kt DjApp/app/src/main/java/com/example/djapp/MainActivity.kt DjApp/app/src/main/java/com/example/djapp/Panels.kt
       - uses: actions/setup-java@v4
         with: { distribution: temurin, java-version: 17 }
       - uses: android-actions/setup-android@v3
