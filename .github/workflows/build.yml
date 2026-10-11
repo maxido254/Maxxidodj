@@ -23,7 +23,7 @@ jobs:
       - if: failure()
         working-directory: DjApp
         run: |
-          { echo '## Errors'; echo '```'; grep -E -B2 -A8 "^e: |error:|What went wrong|Could not" build.log | head -80; echo '```'; } >> $GITHUB_STEP_SUMMARY
+          { echo '## Errors'; echo '```'; grep -E -A25 "What went wrong|^e: |CXX1212" build.log | fold -s -w 60 | head -120; echo '```'; } >> $GITHUB_STEP_SUMMARY
       - uses: actions/upload-artifact@v4
         with:
           name: DjApp-debug-apk
