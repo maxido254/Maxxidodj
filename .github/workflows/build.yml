@@ -10,6 +10,7 @@ jobs:
       - run: unzip -q DjApp.zip
       - run: |
           printf "android.useAndroidX=true\norg.gradle.jvmargs=-Xmx3g\n" > DjApp/gradle.properties
+          sed -i 's/cppFlags += "-std=c++17"/cppFlags += "-std=c++17"; arguments += "-DANDROID_STL=c++_shared"/' DjApp/app/build.gradle.kts
       - uses: actions/setup-java@v4
         with: { distribution: temurin, java-version: 17 }
       - run: |
