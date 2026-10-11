@@ -11,6 +11,8 @@ jobs:
         run: unzip -q -o DjApp-fixed2.zip
       - name: Add gradle properties
         run: printf 'android.useAndroidX=true\norg.gradle.jvmargs=-Xmx3g\n' > DjApp/gradle.properties
+      - name: Patch Stems panel
+        run: sed -i 's/^private fun StemsPanel/private fun ColumnScope.StemsPanel/' DjApp/app/src/main/java/com/example/djapp/Panels.kt
       - uses: actions/setup-java@v4
         with: { distribution: temurin, java-version: 17 }
       - uses: android-actions/setup-android@v3
@@ -27,10 +29,3 @@ jobs:
           {
             echo '## ERROR DETAILS'
             echo '```'
-            grep -n -B2 -A12 -E "CMake Error|CXX1212|error:|e: |What went wrong" build.log | cut -c1-400 | head -150
-            echo '```'
-          } >> "$GITHUB_STEP_SUMMARY"
-      - uses: actions/upload-artifact@v4
-        with:
-          name: DjApp-debug-apk
-          path: DjApp/app/build/outputs/apk/debug/app-debug.apk
