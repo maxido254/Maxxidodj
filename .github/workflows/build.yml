@@ -1,34 +1,97 @@
-name: Build APK
-on: [push, workflow_dispatch]
+name: Build MAXXIDODJ APK
+
+on:
+  push:
+  workflow_dispatch:
+
 permissions:
   contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
-      - run: unzip -q DjApp.zip
-      - run: |
-          printf "android.useAndroidX=true\norg.gradle.jvmargs=-Xmx3g\n" > DjApp/gradle.properties
-          sed -i 's/cppFlags += "-std=c++17"/cppFlags += "-std=c++17"; arguments += "-DANDROID_STL=c++_shared"/' DjApp/app/build.gradle.kts
-      - uses: actions/setup-java@v4
-        with: { distribution: temurin, java-version: 17 }
-      - run: |
-          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses > /dev/null || true
-          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-34" "build-tools;34.0.0" "ndk;26.1.10909125" "cmake;3.22.1"
-      - uses: gradle/actions/setup-gradle@v4
-        with: { gradle-version: 8.7 }
-      - shell: bash
-        working-directory: DjApp
-        run: gradle assembleDebug --console=plain 2>&1 | tee build.log
-      - if: failure()
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Extract Android project
+        run: unzip -q DjApp.zip
+
+      - name: Configure Android project
         working-directory: DjApp
         run: |
-          { echo '## Errors'; echo '```'; grep -E -A25 "What went wrong|^e: |CXX1212" build.log | fold -s -w 60 | head -120; echo '```'; } >> $GITHUB_STEP_SUMMARY
-      - uses: actions/upload-artifact@v4
+          printf 'android.useAndroidX=true\norg.gradle.jvmargs=-Xmx3g\n' > gradle.properties
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
         with:
-          name: DjApp-debug-apk
+          distribution: temurin
+          java-version: '17'
+
+      - name: Accept Android SDK licenses and install dependencies
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" \
+            "platforms;android-34" \
+            "build-tools;34.0.0" \
+            "ndk;26.1.10909125" \
+            "cmake;3.22.1"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+
+      - name: Build MAXXIDODJ APK
+        shell: bash
+        working-directory: DjApp
+        run: |
+          set -o pipefail
+          gradle assembleDebug --console=plain 2>&1 | tee build.log
+
+      - name: Display build errors
+        if: failure()
+        working-directory: DjApp
+        run: |
+          if [ -f build.log ]; then
+            {
+              echo "## MAXXIDODJ Build Errors"
+              echo '```text'
+              grep -E -A25 \
+                "What went wrong|^e: |error:|CXX1212|FAILED" \
+                build.log | head -200 || true
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload debug APK
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: MAXXIDODJ-debug-APK
           path: DjApp/app/build/outputs/apk/debug/app-debug.apk
-      - run: gh release create v${{ github.run_number }} DjApp/app/build/outputs/apk/debug/app-debug.apk --title "Build ${{ github.run_number }}" --notes "Debug APK"
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Create GitHub release
+        if: success() && github.event_name == 'push'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          APK="DjApp/app/build/outputs/apk/debug/app-debug.apk"
+          TAG="maxxidodj-build-${GITHUB_RUN_NUMBER}"
+
+          gh release create "$TAG" "$APK" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "MAXXIDODJ Build ${GITHUB_RUN_NUMBER}" \
+            --notes "Automated MAXXIDODJ debug APK build."
+
+      - name: Upload APK for manual builds
+        if: success() && github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: MAXXIDODJ-manual-build
+          path: DjApp/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
