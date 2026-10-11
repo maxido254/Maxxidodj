@@ -14,11 +14,16 @@ jobs:
         with: { distribution: temurin, java-version: 17 }
       - run: |
           yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses > /dev/null || true
-          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "ndk;26.1.10909125" "cmake;3.22.1"
+          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-34" "build-tools;34.0.0" "ndk;26.1.10909125" "cmake;3.22.1"
       - uses: gradle/actions/setup-gradle@v4
         with: { gradle-version: 8.7 }
-      - run: gradle assembleDebug --console=plain
+      - shell: bash
         working-directory: DjApp
+        run: gradle assembleDebug --console=plain 2>&1 | tee build.log
+      - if: failure()
+        working-directory: DjApp
+        run: |
+          { echo '## Errors'; echo '```'; grep -E -B2 -A8 "^e: |error:|What went wrong|Could not" build.log | head -80; echo '```'; } >> $GITHUB_STEP_SUMMARY
       - uses: actions/upload-artifact@v4
         with:
           name: DjApp-debug-apk
