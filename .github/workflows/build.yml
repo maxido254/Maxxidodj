@@ -27,13 +27,13 @@ jobs:
         working-directory: DjApp
         run: |
           {
-            echo '## KOTLIN / BUILD ERRORS'
+            echo '## KOTLIN ERRORS'
             echo '```'
-            grep -E "^e: |error:|What went wrong|Execution failed|Unresolved|Cannot|CMake Error" build.log | cut -c1-300 | head -40 || true
+            grep -E "^e: " build.log | sed 's#file:///.*/djapp/##' | fold -s -w 55 | head -80 || true
             echo '```'
-            echo '## LAST LINES'
+            echo '## OTHER'
             echo '```'
-            tail -n 40 build.log | cut -c1-300 || true
+            grep -E "error:|Unresolved|CMake Error" build.log | fold -s -w 55 | head -30 || true
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
