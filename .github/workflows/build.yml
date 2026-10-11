@@ -2,19 +2,15 @@ name: Build APK
 on:
   push:
   workflow_dispatch:
+permissions:
+  contents: write
 jobs:
   build:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - name: Unzip project
-        run: unzip -q -o DjApp-fixed2.zip
-      - name: Add gradle properties
-        run: printf 'android.useAndroidX=true\norg.gradle.jvmargs=-Xmx3g\n' > DjApp/gradle.properties
-      - name: Patch Stems panel
-        run: sed -i 's/^private fun StemsPanel/private fun ColumnScope.StemsPanel/' DjApp/app/src/main/java/com/example/djapp/Panels.kt
-      - name: Patch tempo name clash
-        run: sed -i 's/setTempoPct/applyTempo/g' DjApp/app/src/main/java/com/example/djapp/DeckState.kt DjApp/app/src/main/java/com/example/djapp/MainActivity.kt DjApp/app/src/main/java/com/example/djapp/Panels.kt
+        run: unzip -q -o DjApp-fixed4.zip
       - uses: actions/setup-java@v4
         with: { distribution: temurin, java-version: 17 }
       - uses: android-actions/setup-android@v3
@@ -35,10 +31,13 @@ jobs:
             echo '```'
             echo '## OTHER'
             echo '```'
-            grep -E "error:|Unresolved|CMake Error" build.log | fold -s -w 55 | head -30 || true
+            grep -E "error:|Unresolved|CMake Error|What went wrong" -A3 build.log | fold -s -w 55 | head -40 || true
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
-      - uses: actions/upload-artifact@v4
-        with:
-          name: DjApp-debug-apk
-          path: DjApp/app/build/outputs/apk/debug/app-debug.apk
+      - name: Publish APK to Releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp DjApp/app/build/outputs/apk/debug/app-debug.apk MAXXIDODJ.apk
+          gh release delete latest --yes --cleanup-tag --repo "${{ github.repository }}" || true
+          gh release create latest MAXXIDODJ.apk --repo "${{ github.repository }}" --target "${{ github.sha }}" --title "MAXXIDODJ latest build" --notes "Debug build of commit ${{ github.sha }}"
