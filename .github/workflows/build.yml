@@ -10,8 +10,8 @@ jobs:
         with: { fetch-depth: 0 }
       - name: Pick and unpack the NEWEST project zip (and refuse an old one)
         run: |
-          # 1) a zip whose name ends in -3 (e.g. DjApp-crossdj-v2-3.zip) wins; 2) otherwise the zip committed most recently
-          ZIP=$(ls DjApp*-3.zip 2>/dev/null | head -1)
+          # 1) DjApp-crossdj-v3-newui-2.zip wins when it is in the repo; 2) otherwise the zip committed most recently
+          ZIP=$(ls DjApp-crossdj-v3-newui-2.zip 2>/dev/null | head -1)
           if [ -z "$ZIP" ]; then
             ZIP=$(for f in DjApp*.zip; do [ -f "$f" ] && echo "$(git log -1 --format=%ct -- "$f") $f"; done | sort -n | tail -1 | cut -d' ' -f2-)
           fi
@@ -45,32 +45,4 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with: { gradle-version: 8.7 }
       - name: Build
-        working-directory: DjApp
-        run: gradle assembleDebug --stacktrace > build.log 2>&1 || (echo BUILD_FAILED >> build.log; exit 1)
-      - name: Show errors
-        if: failure()
-        working-directory: DjApp
-        run: |
-          {
-            echo '## KOTLIN ERRORS'
-            echo '```'
-            grep -E "^e: " build.log | sed 's#file:///.*/djapp/##' | fold -s -w 55 | head -80 || true
-            echo '```'
-            echo '## OTHER'
-            echo '```'
-            grep -E "error:|Unresolved|CMake Error|What went wrong" -A3 build.log | fold -s -w 55 | head -40 || true
-            echo '```'
-          } >> "$GITHUB_STEP_SUMMARY"
-      - name: Name the APK after the zip it was built from
-        run: |
-          APK_NAME="MAXIDO-DJ_${ZIP_NAME}_run${GITHUB_RUN_NUMBER}"
-          cp DjApp/app/build/outputs/apk/debug/app-debug.apk "DjApp/${APK_NAME}.apk"
-          echo "APK_NAME=$APK_NAME" >> "$GITHUB_ENV"
-          {
-            echo "## Built from: \`${ZIP_NAME}.zip\`"
-            echo "APK file: \`${APK_NAME}.apk\` (run #${GITHUB_RUN_NUMBER}, commit ${GITHUB_SHA::7})"
-          } >> "$GITHUB_STEP_SUMMARY"
-      - uses: actions/upload-artifact@v4
-        with:
-          name: ${{ env.APK_NAME }}
-          path: DjApp/${{ env.APK_NAME }}.apk
+        working-d
