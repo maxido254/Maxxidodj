@@ -10,17 +10,19 @@ jobs:
         with: { fetch-depth: 0 }
       - name: Pick and unpack the NEWEST project zip (and refuse an old one)
         run: |
-          # 1) the zip with the highest "-N" number wins (DjApp-crossdj-v2-4.zip beats ...-3.zip); 2) else the most recently committed zip
-          ZIP=$(ls DjApp*-[0-9]*.zip 2>/dev/null | sort -V | tail -1)
+          # 1) a zip whose name ends in -3 (e.g. DjApp-crossdj-v2-3.zip) wins; 2) otherwise the zip committed most recently
+          ZIP=$(ls DjApp*-3.zip 2>/dev/null | head -1)
           if [ -z "$ZIP" ]; then
             ZIP=$(for f in DjApp*.zip; do [ -f "$f" ] && echo "$(git log -1 --format=%ct -- "$f") $f"; done | sort -n | tail -1 | cut -d' ' -f2-)
           fi
           if [ -n "$ZIP" ]; then
             echo "Using zip: $ZIP"
+            echo "ZIP_NAME=$(basename "$ZIP" .zip)" >> "$GITHUB_ENV"
             rm -rf DjApp
             unzip -q -o "$ZIP"
           elif [ -f DjApp/settings.gradle.kts ]; then
             echo "No zip in the repo; using the committed DjApp folder"
+            echo "ZIP_NAME=DjApp-folder" >> "$GITHUB_ENV"
           else
             echo "::error::No DjApp*.zip found in the repo root"; ls -la; exit 1
           fi
@@ -59,7 +61,16 @@ jobs:
             grep -E "error:|Unresolved|CMake Error|What went wrong" -A3 build.log | fold -s -w 55 | head -40 || true
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
+      - name: Name the APK after the zip it was built from
+        run: |
+          APK_NAME="MAXIDO-DJ_${ZIP_NAME}_run${GITHUB_RUN_NUMBER}"
+          cp DjApp/app/build/outputs/apk/debug/app-debug.apk "DjApp/${APK_NAME}.apk"
+          echo "APK_NAME=$APK_NAME" >> "$GITHUB_ENV"
+          {
+            echo "## Built from: \`${ZIP_NAME}.zip\`"
+            echo "APK file: \`${APK_NAME}.apk\` (run #${GITHUB_RUN_NUMBER}, commit ${GITHUB_SHA::7})"
+          } >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         with:
-          name: DjApp-debug-apk
-          path: DjApp/app/build/outputs/apk/debug/app-debug.apk
+          name: ${{ env.APK_NAME }}
+          path: DjApp/${{ env.APK_NAME }}.apk
