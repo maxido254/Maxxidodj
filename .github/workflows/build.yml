@@ -2,15 +2,34 @@ name: Build APK
 on:
   push:
   workflow_dispatch:
-permissions:
-  contents: write
 jobs:
   build:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - name: Unzip project
-        run: unzip -q -o DjApp-fixed4.zip
+      - name: Unpack the NEW project (DjApp-crossdj-v2.zip) and refuse to build an old one
+        run: |
+          ZIP=DjApp-crossdj-v2.zip
+          if [ -f "$ZIP" ]; then
+            rm -rf DjApp
+            unzip -q -o "$ZIP"
+          elif [ -f DjApp/settings.gradle.kts ]; then
+            echo "No $ZIP in the repo; using the committed DjApp folder"
+          else
+            echo "::error::$ZIP not found in the repo root. Upload it next to .github/"
+            ls -la
+            exit 1
+          fi
+          for f in app/src/main/cpp/stretch.h app/src/main/java/com/example/djapp/Prepared.kt \
+                   app/src/main/java/com/example/djapp/Sampler.kt app/src/main/java/com/example/djapp/VideoMixer.kt; do
+            test -f "DjApp/$f" || { echo "::error::DjApp/$f missing: this is an OLD project version"; exit 1; }
+          done
+          echo "Building the new version"
+      - name: Cache AI model (166 MB, downloaded by Gradle at build time)
+        uses: actions/cache@v4
+        with:
+          path: DjApp/app/src/main/assets/htdemucs_fp16.onnx
+          key: demucs-fp16-onnx-v1
       - uses: actions/setup-java@v4
         with: { distribution: temurin, java-version: 17 }
       - uses: android-actions/setup-android@v3
@@ -34,10 +53,7 @@ jobs:
             grep -E "error:|Unresolved|CMake Error|What went wrong" -A3 build.log | fold -s -w 55 | head -40 || true
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
-      - name: Publish APK to Releases
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          cp DjApp/app/build/outputs/apk/debug/app-debug.apk MAXXIDODJ.apk
-          gh release delete latest --yes --cleanup-tag --repo "${{ github.repository }}" || true
-          gh release create latest MAXXIDODJ.apk --repo "${{ github.repository }}" --target "${{ github.sha }}" --title "MAXXIDODJ latest build" --notes "Debug build of commit ${{ github.sha }}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DjApp-debug-apk
+          path: DjApp/app/build/outputs/apk/debug/app-debug.apk
