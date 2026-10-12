@@ -10,8 +10,8 @@ jobs:
         with: { fetch-depth: 0 }
       - name: Pick and unpack the NEWEST project zip (and refuse an old one)
         run: |
-          # 1) a zip whose name ends in -3 (e.g. DjApp-crossdj-v2-3.zip) wins; 2) otherwise the zip committed most recently
-          ZIP=$(ls DjApp*-3.zip 2>/dev/null | head -1)
+          # 1) the zip with the highest "-N" number wins (DjApp-crossdj-v2-4.zip beats ...-3.zip); 2) else the most recently committed zip
+          ZIP=$(ls DjApp*-[0-9]*.zip 2>/dev/null | sort -V | tail -1)
           if [ -z "$ZIP" ]; then
             ZIP=$(for f in DjApp*.zip; do [ -f "$f" ] && echo "$(git log -1 --format=%ct -- "$f") $f"; done | sort -n | tail -1 | cut -d' ' -f2-)
           fi
