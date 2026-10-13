@@ -10,7 +10,6 @@ jobs:
         with: { fetch-depth: 0 }
       - name: Pick and unpack the NEWEST project zip (and refuse an old one)
         run: |
-          # 1) DjApp-crossdj-v3-newui-1.zip wins when it is in the repo; 2) otherwise the zip committed most recently
           ZIP=$(ls DjApp-crossdj-v3-newui-1.zip 2>/dev/null | head -1)
           if [ -z "$ZIP" ]; then
             ZIP=$(for f in DjApp*.zip; do [ -f "$f" ] && echo "$(git log -1 --format=%ct -- "$f") $f"; done | sort -n | tail -1 | cut -d' ' -f2-)
@@ -26,13 +25,20 @@ jobs:
           else
             echo "::error::No DjApp*.zip found in the repo root"; ls -la; exit 1
           fi
-          # Things that only exist in the newest version (EQ, stems prep, sampler, video): stop if missing.
           for f in app/src/main/cpp/stretch.h app/src/main/java/com/example/djapp/Prepared.kt \
                    app/src/main/java/com/example/djapp/Sampler.kt app/src/main/java/com/example/djapp/VideoMixer.kt; do
             test -f "DjApp/$f" || { echo "::error::DjApp/$f missing: OLD version in $ZIP"; exit 1; }
           done
           grep -q "setEq" DjApp/app/src/main/cpp/engine.cpp || { echo "::error::No EQ in $ZIP: OLD version"; exit 1; }
           echo "Building the newest version"
+      - name: Patch ProSkin.kt (add missing fillMaxSize import)
+        run: |
+          F=DjApp/app/src/main/java/com/example/djapp/ProSkin.kt
+          if ! grep -q "^import androidx.compose.foundation.layout.fillMaxSize" "$F"; then
+            sed -i '0,/^import androidx.compose.foundation.layout.fillMaxHeight/s//import androidx.compose.foundation.layout.fillMaxHeight\nimport androidx.compose.foundation.layout.fillMaxSize/' "$F"
+            echo "Added fillMaxSize import"
+          fi
+          grep -n "fillMaxSize" "$F" | head -3
       - name: Cache AI model (166 MB, downloaded by Gradle at build time)
         uses: actions/cache@v4
         with:
