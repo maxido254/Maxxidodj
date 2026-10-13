@@ -51,10 +51,13 @@ jobs:
         if: failure()
         working-directory: DjApp
         run: |
-          echo "===== ERRORS ====="
-          grep -E "^e: |error:|What went wrong|Could not|checksum|SCNet" -A4 build.log | head -80 || true
-          echo "===== LAST 40 LINES ====="
-          tail -40 build.log
+          grep -E "^e: |error:|What went wrong|Could not|checksum|SCNet" -A3 build.log | head -30 > err.txt || true
+          echo "----- last lines -----" >> err.txt
+          tail -15 build.log >> err.txt
+          cat err.txt
+          MSG=$(head -c 3500 err.txt | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}')
+          echo "::error title=Build failed::$MSG"
+          sed 's/^/    /' err.txt >> "$GITHUB_STEP_SUMMARY"
       - name: Report what takes space inside the APK
         run: |
           APK=DjApp/app/build/outputs/apk/debug/app-debug.apk
