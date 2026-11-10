@@ -1,0 +1,6 @@
+cmake_minimum_required(VERSION 3.22)
+project(djengine)
+find_package(oboe REQUIRED CONFIG)
+add_library(djengine SHARED engine.cpp)
+target_compile_options(djengine PRIVATE -O3)
+target_link_libraries(djengine oboe::oboe log)
