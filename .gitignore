@@ -1,0 +1,18 @@
+# Keep historic zip uploads as backups, but never build from them.
+**/.gradle/
+**/build/
+**/.idea/
+**/local.properties
+**/*.iml
+**/*.jks
+**/*.keystore
+**/*.part
+**/app/src/main/assets/*.onnx
+**/desktop/resources/common/models/*.onnx
+**/desktop/resources/*/*.dll
+**/desktop/resources/*/*.so
+**/desktop/resources/*/*.dylib
+**/billing-server/.env
+**/billing-server/keys/
+**/billing-server/data/
+**/node_modules/
